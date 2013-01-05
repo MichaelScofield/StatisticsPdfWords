@@ -9,15 +9,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.*;
 
 /**
  * User: LuoFucong
  * Date: 12-12-31
- * Time: 下午12:07
  */
 public class StatisticsWords {
 
-    private static final String ZSET_KEY = "TOTAL_WORDS";
+    public static final String TOTAL_WORDS_FREQUENCY_KEY = "TOTAL_WORDS_FREQUENCY";
+
+    public static final String TOTAL_WORDS_KEY = "TOTAL_WORDS";
 
     private static final String INIT_WORD = "INIT-WORD";
 
@@ -25,10 +27,13 @@ public class StatisticsWords {
 
     private Set<String> excludedWords;
 
-    public StatisticsWords(String host, int port) throws IOException {
-        jedis = new Jedis(host, port);
-        if (!jedis.exists(ZSET_KEY)) {
-            jedis.zadd(ZSET_KEY, 0, INIT_WORD);
+    public StatisticsWords(Jedis jedis) throws IOException {
+        this.jedis = jedis;
+        if (!jedis.exists(TOTAL_WORDS_FREQUENCY_KEY)) {
+            jedis.zadd(TOTAL_WORDS_FREQUENCY_KEY, 0, INIT_WORD);
+        }
+        if (!jedis.exists(TOTAL_WORDS_KEY)) {
+            jedis.sadd(TOTAL_WORDS_KEY, INIT_WORD);
         }
 
         excludedWords = new HashSet<String>();
@@ -64,8 +69,10 @@ public class StatisticsWords {
                             }
                         }
                         word = word.replaceAll("([a-z]+)[?:!.,;]*", "$1");
-                        if (StringUtils.isNotBlank(word) && !StringUtils.isNumeric(word) && !excludedWords.contains(word)) {
-                            jedis.zincrby(ZSET_KEY, 1, word);
+                        if (StringUtils.isNotBlank(word) && !StringUtils.isNumeric(word)
+                                && !excludedWords.contains(word)) {
+                            jedis.zincrby(TOTAL_WORDS_FREQUENCY_KEY, 1, word);
+                            jedis.sadd(TOTAL_WORDS_KEY, word);
                         }
                     }
                 }
@@ -77,8 +84,30 @@ public class StatisticsWords {
         } while (count-- > 0);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        StatisticsWords statisticsWords = new StatisticsWords("127.0.0.1", 6379);
-        statisticsWords.Statistics("E:\\A Dance With Dragons.pdf");
+    public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
+        Jedis _Jedis = new Jedis("127.0.0.1", 6379);
+//        StatisticsWords statisticsWords = new StatisticsWords(_Jedis);
+////        statisticsWords.Statistics("E:\\A Dance With Dragons.pdf");
+//        statisticsWords.Statistics("C:\\Users\\luofucong\\Desktop\\A Dance With Dragons.pdf");
+
+//        BingTranslatorService bingTranslatorService = new BingTranslatorService();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(3);
+//        int expiredSec = 0;
+//        long beginTime = 0;
+        do {
+//            if (System.currentTimeMillis() - beginTime > expiredSec) {
+//                bingTranslatorService.getBingToken();
+//                expiredSec = Integer.parseInt(bingTranslatorService.accessToken.getExpires_in()) * 1000;
+//                beginTime = System.currentTimeMillis();
+//            }
+
+//            AbstractTranslator task = new BingTranslator(bingTranslatorService.accessToken);
+            AbstractTranslator task = new IcibaTranslator();
+            task.setJedis(_Jedis);
+
+            Future<String> submit = executorService.submit(task);
+            System.out.println(submit.get());
+        } while (_Jedis.scard(StatisticsWords.TOTAL_WORDS_KEY) > 0);
     }
 }

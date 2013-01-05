@@ -8,7 +8,6 @@ import java.io.IOException;
 /**
  * User: LuoFucong
  * Date: 12-12-31
- * Time: 上午11:12
  */
 public class PDFTextReader {
 
