@@ -1,15 +1,20 @@
 package me.lfc;
 
 import org.apache.commons.lang3.StringUtils;
+import org.dom4j.io.SAXReader;
 import redis.clients.jedis.Jedis;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * User: LuoFucong
@@ -84,11 +89,10 @@ public class StatisticsWords {
         } while (count-- > 0);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
+    public static void main(String[] args) throws IOException, InterruptedException, ExecutionException, ParserConfigurationException {
         Jedis _Jedis = new Jedis("127.0.0.1", 6379);
 //        StatisticsWords statisticsWords = new StatisticsWords(_Jedis);
-////        statisticsWords.Statistics("E:\\A Dance With Dragons.pdf");
-//        statisticsWords.Statistics("C:\\Users\\luofucong\\Desktop\\A Dance With Dragons.pdf");
+//        statisticsWords.Statistics("E:\\A Dance With Dragons.pdf");
 
 //        BingTranslatorService bingTranslatorService = new BingTranslatorService();
 
@@ -105,6 +109,7 @@ public class StatisticsWords {
 //            AbstractTranslator task = new BingTranslator(bingTranslatorService.accessToken);
             AbstractTranslator task = new IcibaTranslator();
             task.setJedis(_Jedis);
+            ((IcibaTranslator) task).setReader(new SAXReader());
 
             Future<String> submit = executorService.submit(task);
             System.out.println(submit.get());
