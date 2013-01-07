@@ -1,2 +1,1 @@
-Statistics English words in a specific PDF file. The words are sorted in frequency of occurrence, and translated to 
-corresponding Chinese meaning.
+统计英文PDF的所有生词，按出现频率排序，再查词典把中文意思打印出来
