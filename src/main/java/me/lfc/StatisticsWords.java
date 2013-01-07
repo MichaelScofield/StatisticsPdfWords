@@ -1,20 +1,19 @@
 package me.lfc;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.dom4j.io.SAXReader;
 import redis.clients.jedis.Jedis;
 
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * User: LuoFucong
@@ -94,25 +93,23 @@ public class StatisticsWords {
 //        StatisticsWords statisticsWords = new StatisticsWords(_Jedis);
 //        statisticsWords.Statistics("E:\\A Dance With Dragons.pdf");
 
-//        BingTranslatorService bingTranslatorService = new BingTranslatorService();
-
         ExecutorService executorService = Executors.newFixedThreadPool(3);
-//        int expiredSec = 0;
-//        long beginTime = 0;
+        AtomicInteger wordIndex = new AtomicInteger(0);
+        int totalWords = _Jedis.zcard(StatisticsWords.TOTAL_WORDS_FREQUENCY_KEY).intValue();
         do {
-//            if (System.currentTimeMillis() - beginTime > expiredSec) {
-//                bingTranslatorService.getBingToken();
-//                expiredSec = Integer.parseInt(bingTranslatorService.accessToken.getExpires_in()) * 1000;
-//                beginTime = System.currentTimeMillis();
-//            }
-
-//            AbstractTranslator task = new BingTranslator(bingTranslatorService.accessToken);
-            AbstractTranslator task = new IcibaTranslator();
+            IcibaTranslator task = new IcibaTranslator();
             task.setJedis(_Jedis);
-            ((IcibaTranslator) task).setReader(new SAXReader());
+            task.setReader(new SAXReader());
+            task.setWordIndex(wordIndex);
+
+            wordIndex.addAndGet(1);
 
             Future<String> submit = executorService.submit(task);
-            System.out.println(submit.get());
-        } while (_Jedis.scard(StatisticsWords.TOTAL_WORDS_KEY) > 0);
+            String result = submit.get();
+            if (StringUtils.isNotBlank(result)) {
+                IOUtils.write(result + "\n", new FileOutputStream("E:\\result1.txt", true));
+            }
+        } while (wordIndex.get() <= totalWords);
+        executorService.shutdown();
     }
 }

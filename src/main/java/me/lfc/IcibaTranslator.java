@@ -8,10 +8,10 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
-import redis.clients.jedis.Jedis;
 
 import java.net.URLEncoder;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * User: luofucong
@@ -23,11 +23,19 @@ public class IcibaTranslator extends AbstractTranslator {
 
     private SAXReader reader;
 
+    private AtomicInteger wordIndex;
+
     @Override
     @SuppressWarnings("unchecked")
     public String call() throws Exception {
-        String word = jedis.spop(StatisticsWords.TOTAL_WORDS_KEY);
-        System.out.println("pop word: " + word);
+//        String word = jedis.spop(StatisticsWords.TOTAL_WORDS_KEY);
+        int index = wordIndex.get();
+        if (index >= jedis.zcard(StatisticsWords.TOTAL_WORDS_FREQUENCY_KEY)) {
+            return "";
+        }
+        String word = jedis.zrevrange(StatisticsWords.TOTAL_WORDS_FREQUENCY_KEY, index, index).iterator().next();
+        int frequency = jedis.zscore(StatisticsWords.TOTAL_WORDS_FREQUENCY_KEY, word).intValue();
+        System.out.println(index + " pop word: " + word + " " + frequency);
 
         HttpClient httpClient = new DefaultHttpClient();
         StringBuilder result = new StringBuilder();
@@ -51,19 +59,14 @@ public class IcibaTranslator extends AbstractTranslator {
         } finally {
             httpClient.getConnectionManager().shutdown();
         }
-        return result.toString();
+        return word + ":\n" + frequency + "\n" + result.toString();
     }
 
     public void setReader(SAXReader reader) {
         this.reader = reader;
     }
 
-    public static void main(String[] args) throws Exception {
-        Jedis _Jedis = new Jedis("127.0.0.1", 6379);
-        IcibaTranslator icibaTranslator = new IcibaTranslator();
-        icibaTranslator.setJedis(_Jedis);
-        icibaTranslator.setReader(new SAXReader());
-        String res = icibaTranslator.call();
-        System.out.println(res);
+    public void setWordIndex(AtomicInteger wordIndex) {
+        this.wordIndex = wordIndex;
     }
 }
